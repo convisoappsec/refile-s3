@@ -1,6 +1,6 @@
 require "aws-sdk-s3"
 require "open-uri"
-require "refile"
+require 'refile'
 require "refile/s3/version"
 
 module Refile
