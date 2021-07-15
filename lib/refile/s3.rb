@@ -1,17 +1,16 @@
-require "aws-sdk-s3"
-require "open-uri"
+require 'aws-sdk-s3'
+require 'open-uri'
 require 'refile'
-require "refile/s3/version"
+require 'refile/s3/version'
 
 module Refile
-
   # @api private
   class S3BackendError < StandardError; end
 
   # @api private
   class S3CredentialsError < S3BackendError
     def message
-      "Credentials not found"
+      'Credentials not found'
     end
   end
 
@@ -31,10 +30,10 @@ module Refile
     attr_reader :access_key_id, :max_size
 
     S3_AVAILABLE_OPTIONS = {
-      client: %i(access_key_id region secret_access_key),
-      copy_from: %i(copy_source server_side_encryption storage_class),
-      presigned_post: %i(key server_side_encryption storage_class),
-      put: %i(body content_length server_side_encryption storage_class)
+      client: %i[access_key_id region secret_access_key],
+      copy_from: %i[copy_source server_side_encryption storage_class],
+      presigned_post: %i[key server_side_encryption storage_class],
+      put: %i[body content_length server_side_encryption storage_class]
     }
 
     # Sets up an S3 backend
@@ -47,11 +46,13 @@ module Refile
     # @param [Hash] s3_options          Additional options to initialize S3 with
     # @see http://docs.aws.amazon.com/AWSRubySDK/latest/AWS/Core/Configuration.html
     # @see http://docs.aws.amazon.com/AWSRubySDK/latest/AWS/S3.html
-    def initialize(region:, bucket:, max_size: nil, prefix: nil, hasher: Refile::RandomHasher.new, **s3_options)
+    def initialize(region:, bucket:, max_size: nil, prefix: nil, hasher: Refile::RandomHasher.new, **s3_options) 
       @s3_options = { region: region }.merge s3_options
-      @s3 = Aws::S3::Resource.new s3_options_for(:client)
+      options = s3_options.reject { |key| S3_AVAILABLE_OPTIONS.fetch(:client).include? key }
+      @s3 = Aws::S3::Resource.new s3_options_for(:client, options)
       credentials = @s3.client.config.credentials
       raise S3CredentialsError unless credentials
+
       @access_key_id = credentials.access_key_id
       @bucket_name = bucket
       @bucket = @s3.bucket @bucket_name
@@ -68,10 +69,12 @@ module Refile
       id = @hasher.hash(uploadable)
 
       operation, options = if upload_via_copy_operation?(uploadable)
-        [:copy_from, { copy_source: [@bucket_name, uploadable.backend.object(uploadable.id).key].join("/") }]
-      else
-        [:put, { body: uploadable, content_length: uploadable.size }]
-      end
+                             [:copy_from, { copy_source: [@bucket_name, uploadable.backend
+                                                                                  .object(uploadable.id)
+                                                                                  .key].join('/') }]
+                           else
+                             [:put, { body: uploadable, content_length: uploadable.size }]
+                           end
 
       object(id).send(operation, s3_options_for(operation, options))
 
@@ -145,6 +148,7 @@ module Refile
     # @return [void]
     def clear!(confirm = nil)
       raise Refile::Confirm unless confirm == :confirm
+
       @bucket.objects(prefix: @prefix).delete
     end
 
@@ -154,9 +158,9 @@ module Refile
     # @return [Refile::Signature]
     def presign
       id = RandomHasher.new.hash
-      signature = @bucket.presigned_post(s3_options_for(:presigned_post, key: [*@prefix, id].join("/")))
+      signature = @bucket.presigned_post(s3_options_for(:presigned_post, key: [*@prefix, id].join('/')))
       signature.content_length_range(0..@max_size) if @max_size
-      Signature.new(as: "file", id: id, url: signature.url.to_s, fields: signature.fields)
+      Signature.new(as: 'file', id: id, url: signature.url.to_s, fields: signature.fields)
     end
 
     def s3_options_for(operation, options = {})
@@ -165,11 +169,13 @@ module Refile
     end
 
     def upload_via_copy_operation?(uploadable)
-      uploadable.is_a?(Refile::File) and uploadable.backend.is_a?(S3) and uploadable.backend.access_key_id == access_key_id
+      uploadable.is_a?(Refile::File) and
+        uploadable.backend.is_a?(S3) and
+        uploadable.backend.access_key_id == access_key_id
     end
 
     verify_id def object(id)
-      @bucket.object([*@prefix, id].join("/"))
+      @bucket.object([*@prefix, id].join('/'))
     end
   end
 end
