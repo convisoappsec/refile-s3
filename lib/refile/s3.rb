@@ -31,7 +31,7 @@ module Refile
     attr_reader :access_key_id, :max_size
 
     S3_AVAILABLE_OPTIONS = {
-      client: %i(access_key_id region secret_access_key),
+      client: %i(access_key_id region secret_access_key endpoint),
       copy_from: %i(copy_source server_side_encryption storage_class),
       presigned_post: %i(key server_side_encryption storage_class),
       put: %i(body content_length server_side_encryption storage_class)
